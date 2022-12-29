@@ -18,13 +18,11 @@ package com.databricks.spark.xml.util
 import java.math.BigDecimal
 import java.sql.{Date, Timestamp}
 import java.text.NumberFormat
-import java.time.{LocalDate, ZoneId, ZonedDateTime}
+import java.time.{LocalDate, LocalDateTime, ZoneId, ZonedDateTime}
 import java.time.format.{DateTimeFormatter, DateTimeFormatterBuilder}
 import java.util.Locale
-
 import scala.util.Try
 import scala.util.control.Exception._
-
 import org.apache.spark.sql.types._
 import com.databricks.spark.xml.XmlOptions
 
@@ -121,6 +119,12 @@ private[xml] object TypeCast {
     formatters.foreach { format =>
       try {
         return Timestamp.from(ZonedDateTime.parse(value, format).toInstant)
+      } catch {
+        case _: Exception => // continue
+      }
+      // If format does not include timezone information
+      try {
+        return Timestamp.valueOf(LocalDateTime.parse(value, format))
       } catch {
         case _: Exception => // continue
       }
