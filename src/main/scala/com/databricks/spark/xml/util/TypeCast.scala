@@ -114,7 +114,8 @@ private[xml] object TypeCast {
   private def parseXmlTimestamp(value: String, options: XmlOptions): Timestamp = {
     supportedXmlTimestampFormatters.foreach { format =>
       try {
-        return Timestamp.from(ZonedDateTime.parse(value, format).toInstant)
+        // return Timestamp.from(ZonedDateTime.parse(value, format).toInstant)
+        return Timestamp.from(Instant.from(format.parse(value)))
       } catch {
         case _: Exception => // continue
       }
@@ -123,7 +124,8 @@ private[xml] object TypeCast {
       val format = DateTimeFormatter.ofPattern(formatString).
         withZone(options.timezone.map(ZoneId.of).orNull)
       try {
-        return Timestamp.from(ZonedDateTime.parse(value, format).toInstant)
+        // return Timestamp.from(ZonedDateTime.parse(value, format).toInstant)
+        return Timestamp.from(Instant.from(format.parse(value)))
       } catch {
         case _: Exception => // continue
       }
