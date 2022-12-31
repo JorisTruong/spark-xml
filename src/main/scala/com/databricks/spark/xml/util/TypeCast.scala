@@ -18,13 +18,11 @@ package com.databricks.spark.xml.util
 import java.math.BigDecimal
 import java.sql.{Date, Timestamp}
 import java.text.NumberFormat
-import java.time.{LocalDate, ZoneId, ZonedDateTime}
+import java.time.{Instant, LocalDate, ZoneId, ZonedDateTime}
 import java.time.format.{DateTimeFormatter, DateTimeFormatterBuilder}
 import java.util.Locale
-
 import scala.util.Try
 import scala.util.control.Exception._
-
 import org.apache.spark.sql.types._
 import com.databricks.spark.xml.XmlOptions
 
@@ -110,17 +108,24 @@ private[xml] object TypeCast {
     // 2002-05-30T21:46:54
     DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.of("UTC")),
     // 2002-05-30T21:46:54+06:00
-    DateTimeFormatter.ISO_OFFSET_DATE_TIME,
-    // 2002-05-30T21:46:54.1234Z
-    DateTimeFormatter.ISO_INSTANT
+    DateTimeFormatter.ISO_OFFSET_DATE_TIME
   )
 
   private def parseXmlTimestamp(value: String, options: XmlOptions): Timestamp = {
-    val formatters = options.timestampFormat.map(DateTimeFormatter.ofPattern).
-      map(supportedXmlTimestampFormatters :+ _).getOrElse(supportedXmlTimestampFormatters)
-    formatters.foreach { format =>
+    supportedXmlTimestampFormatters.foreach { format =>
       try {
-        return Timestamp.from(ZonedDateTime.parse(value, format).toInstant)
+        // return Timestamp.from(ZonedDateTime.parse(value, format).toInstant)
+        return Timestamp.from(Instant.from(format.parse(value)))
+      } catch {
+        case _: Exception => // continue
+      }
+    }
+    options.timestampFormat.foreach { formatString =>
+      val format = DateTimeFormatter.ofPattern(formatString).
+        withZone(options.timezone.map(ZoneId.of).orNull)
+      try {
+        // return Timestamp.from(ZonedDateTime.parse(value, format).toInstant)
+        return Timestamp.from(Instant.from(format.parse(value)))
       } catch {
         case _: Exception => // continue
       }

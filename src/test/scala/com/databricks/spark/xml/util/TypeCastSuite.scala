@@ -19,11 +19,11 @@ import java.math.BigDecimal
 import java.sql.{Date, Timestamp}
 import java.time.{ZoneId, ZonedDateTime}
 import java.util.Locale
-
 import org.scalatest.funsuite.AnyFunSuite
-
 import org.apache.spark.sql.types._
 import com.databricks.spark.xml.XmlOptions
+
+import java.time.format.DateTimeFormatter
 
 final class TypeCastSuite extends AnyFunSuite {
 
@@ -161,5 +161,74 @@ final class TypeCastSuite extends AnyFunSuite {
     } finally {
       Locale.setDefault(defaultLocale)
     }
+  }
+
+  test("Parsing built-in timestamp formatters") {
+    val options = XmlOptions(Map())
+    val expectedResult = Timestamp.from(
+      ZonedDateTime.of(2002, 5, 30, 21, 46, 54, 0, ZoneId.of("UTC"))
+        .toInstant
+    )
+    assert(
+      TypeCast.castTo("2002-05-30 21:46:54", TimestampType, options) === expectedResult
+    )
+    assert(
+      TypeCast.castTo("2002-05-30T21:46:54", TimestampType, options) === expectedResult
+    )
+    assert(
+      TypeCast.castTo("2002-05-30T21:46:54+00:00", TimestampType, options) === expectedResult
+    )
+    assert(
+      TypeCast.castTo("2002-05-30T21:46:54Z", TimestampType, options) === expectedResult
+    )
+  }
+
+  test("Custom timestamp format is used to parse correctly") {
+    var options = XmlOptions(Map("timestampFormat" -> "MM-dd-yyyy HH:mm:ss", "timezone" -> "UTC"))
+    assert(
+      TypeCast.castTo("12-03-2011 10:15:30", TimestampType, options) ===
+        Timestamp.from(
+          ZonedDateTime.of(2011, 12, 3, 10, 15, 30, 0, ZoneId.of("UTC"))
+            .toInstant
+        )
+    )
+
+    options = XmlOptions(Map("timestampFormat" -> "yyyy/MM/dd HH:mm:ss", "timezone" -> "UTC"))
+    assert(
+      TypeCast.castTo("2011/12/03 10:15:30", TimestampType, options) ===
+        Timestamp.from(
+          ZonedDateTime.of(2011, 12, 3, 10, 15, 30, 0, ZoneId.of("UTC"))
+            .toInstant
+        )
+    )
+
+    options = XmlOptions(Map("timestampFormat" -> "yyyy/MM/dd HH:mm:ss",
+      "timezone" -> "Asia/Shanghai"))
+    assert(
+      TypeCast.castTo("2011/12/03 10:15:30", TimestampType, options) !==
+        Timestamp.from(
+          ZonedDateTime.of(2011, 12, 3, 10, 15, 30, 0, ZoneId.of("UTC"))
+            .toInstant
+        )
+    )
+
+    options = XmlOptions(Map("timestampFormat" -> "yyyy/MM/dd HH:mm:ss",
+      "timezone" -> "Asia/Shanghai"))
+    assert(
+      TypeCast.castTo("2011/12/03 10:15:30", TimestampType, options) ===
+        Timestamp.from(
+          ZonedDateTime.of(2011, 12, 3, 10, 15, 30, 0, ZoneId.of("Asia/Shanghai"))
+            .toInstant
+        )
+    )
+
+    options = XmlOptions(Map("timestampFormat" -> "yyyy/MM/dd HH:mm:ss"))
+    intercept[IllegalArgumentException](
+      TypeCast.castTo("2011/12/03 10:15:30", TimestampType, options) ===
+        Timestamp.from(
+          ZonedDateTime.of(2011, 12, 3, 10, 15, 30, 0, ZoneId.of("UTC"))
+            .toInstant
+        )
+    )
   }
 }
